@@ -19,6 +19,7 @@ class DataPacket:
 def process_message(packet):
     packet = packet.split(";")
 
+    err = packet.split(":")[1]
     src = packet[1]
     dst = packet[2]
     msg = packet[3]
@@ -27,26 +28,30 @@ def process_message(packet):
         ## if Calculo CRC ok ##
         print("* Mensagem recebida, CRC ok. *")
         
-        print(f"MENSAGEM DE {src}: '{msg}' ")
-        
-        print("* Enviando ACK... *")
+        if is_token_holder: # Retorno da minha mensagem
 
-        err = "ACK"
+            if(err == "naoexiste"):
+                print(f"MENSAGEM DE {src}: '{msg}' ")
+                print("* Enviando ACK... *")
+
+                error = "ACK"
     
         # else -> crc errado, enviando nack...#
-        #   err = "NACK"
+        #   error = "NACK"
+        dest = src
 
-        packet = DataPacket(err, dst, src, msg)
         
     else: # Nao eh pra mim, repassando... 
-        packet = DataPacket("naoexiste", src, dst, msg)
+        error = err
+        dest = dst
 
-     ## a nao ser que repassando
+
+    packet = DataPacket(error, src, dest, msg)
     packet_str = packet.to_string()
-    client_socket.sendto(packet_str.encode(), (src, port))
+    client_socket.sendto(packet_str.encode(), (dest, port))
 
 # Implementação do servidor para receber e processar mensagens
-def receive_message(token_destination, machine_name, token_time, is_token_holder):
+def receive_message(token_destination, machine_name, token_time, is_token_spawner):
     # Código para a lógica do servidor usando sockets UDP
     # Criação e configuração do socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -64,12 +69,10 @@ def receive_message(token_destination, machine_name, token_time, is_token_holder
                send_message(fila.get())
 
         if received_packet.startswith("7777"):
-              process_message(received_packet)
+              process_message(received_packet, is_token_holder)
 
 # Função para enviar mensagens
 def send_message(message):
-
-    if is_token_holder and not fila.empty():
         # Código para enviar mensagens
         dst_data = fila.get().split(" ")
         data_packet = DataPacket("naoexiste", machine_name, dst_data[1], dst_data[3])
@@ -86,13 +89,15 @@ def read_config_file(file_path):
         token_destination = lines[0].strip()
         machine_name = lines[1].strip()
         token_time = int(lines[2].strip())
-        is_token_holder = lines[3].strip()
-        return token_destination, machine_name, token_time, is_token_holder
+        is_token_spawner = lines[3].strip()
+        return token_destination, machine_name, token_time, is_token_spawner
 
 if __name__ == '__main__':
     global client_socket
     global port
     global fila
+    global is_token_spawner
+
     global is_token_holder
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -100,10 +105,10 @@ if __name__ == '__main__':
     fila = Queue()
 
     # Carregando configurações do arquivo
-    token_dest, machine_name, token_time, is_token_holder = read_config_file('config.txt')
+    token_dest, machine_name, token_time, is_token_spawner = read_config_file('config.txt')
 
     # Iniciando para receber menssagens
-    receive_message_thread = threading.Thread(target=receive_message, args=(token_dest, machine_name, token_time, is_token_holder))
+    receive_message_thread = threading.Thread(target=receive_message, args=(token_dest, machine_name, token_time, is_token_spawner))
     receive_message_thread.start()
 
     # Iniciando para enviar menssagens

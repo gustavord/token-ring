@@ -49,7 +49,7 @@ def debugging():
 
 def crc32(msg):
     # Calcula o valor CRC32 para a mensagem
-    crc_value = binascii.crc32(msg.encode('utf-8')) & 0xFFFFFFFF  # O "& 0xFFFFFFFF" garante um valor positivo
+    crc_value = binascii.crc32(msg.encode('utf-8'))
     return crc_value
 
 def insertFailure(dst, message):

@@ -100,13 +100,14 @@ def receive_message(destination, machine_name):
         
         # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
         debugging()
-
+        print("xxx")
         # Lógica para manipular os pacotes recebidos
         # verifica se é o token
         if received_packet.startswith(token):
             if fila.empty:
                 #repassa token
-                passesToken()
+                # passesToken()
+                print("fila Vazia")
             else:
                 is_token_holder = True
         if received_packet.startswith("7777"):
@@ -175,12 +176,13 @@ def send_message(destination, machine_name):
             # Aguarda a confirmação de retorno da mensagem
             start_time = time.time()
             while not is_message_confirmed:
-                if time.time() - start_time > timeout_limit:
-                    # Se o tempo limite foi atingido, sai do loop de espera
-                    print("Timeout atingido. Mensagem não confirmada.")
-                    fila.get()
-                    #passesToken()
-                    break
+                print("@@")
+                # if time.time() - start_time > timeout_limit:
+                #     # Se o tempo limite foi atingido, sai do loop de espera
+                #     print("Timeout atingido. Mensagem não confirmada.")
+                #     fila.get()
+                #     #passesToken()
+                #     break
                 pass  # Espera pela confirmação
 
             # Reset da variável para a próxima mensagem

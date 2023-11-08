@@ -100,14 +100,13 @@ def receive_message(destination, machine_name):
         
         # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
         debugging()
-        print("xxx")
         # Lógica para manipular os pacotes recebidos
         # verifica se é o token
         if received_packet.startswith(token):
             if fila.empty:
                 #repassa token
-                # passesToken()
-                print("fila Vazia")
+                #dfgdfgdfgdgdgdgdgg
+                passesToken()
             else:
                 is_token_holder = True
         if received_packet.startswith("7777"):
@@ -144,6 +143,7 @@ def receive_message(destination, machine_name):
             #repassa pacote
             else:
                 client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+        print("xxx")
 
 
 # Função para enviar mensagens
@@ -158,13 +158,15 @@ def send_message(destination, machine_name):
             msg = dst_data[1].replace(" ", "", 1) # pega a mensagem
             crc = crc32(msg)
 
+            print(msg)
+
             #  módulo de inserção de falhas
 
             # A aplicação deve implementar um módulo de inserção de falhas que force as máquinas a inserir erros aleatoriamente nas mensagens.
             # Forçar manualmente ou já deixar ativo????
             # if "-f" in msg:
             #     data_packet = insertFailure(dst, msg)
-            data_packet = insertFailure(dst, msg)
+            #data_packet = insertFailure(dst, msg)
 
             # monta pacote
             data_packet = DataPacket("naoexiste", machine_name, dst, crc, msg)
@@ -176,7 +178,6 @@ def send_message(destination, machine_name):
             # Aguarda a confirmação de retorno da mensagem
             start_time = time.time()
             while not is_message_confirmed:
-                print("@@")
                 # if time.time() - start_time > timeout_limit:
                 #     # Se o tempo limite foi atingido, sai do loop de espera
                 #     print("Timeout atingido. Mensagem não confirmada.")

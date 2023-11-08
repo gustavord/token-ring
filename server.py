@@ -87,64 +87,65 @@ def process_message(packet):
     packet_str = packet.to_string()
     return packet_str
 
-# Implementação do servidor para receber e processar mensagens
-def receive_message(destination, machine_name):
-    global is_token_holder, is_message_confirmed
+# # Implementação do servidor para receber e processar mensagens
+# def receive_message(destination, machine_name):
+#     global is_token_holder, is_message_confirmed
 
-    while True:
-        # Recebendo pacotes
-        data, addr = client_socket.recvfrom(1024)
-        received_packet = data.decode('utf-8')
+#     while True:
+#         # Recebendo pacotes
+#         data, addr = client_socket.recvfrom(1024)
+#         received_packet = data.decode('utf-8')
 
-        # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
-        debugging()
+#         # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
+#         debugging()
 
-        # Lógica para manipular os pacotes recebidos
-        # verifica se é o token
-        if received_packet.startswith(token):
-            if fila.empty:
-                #repassa token
-                passesToken()
-            else:
-                is_token_holder = True
-        if received_packet.startswith("7777"):
-            packet = received_packet.split(";")
+#         # Lógica para manipular os pacotes recebidos
+#         # verifica se é o token
+#         if received_packet.startswith(token):
+#             if fila.empty:
+#                 #repassa token
+#                 passesToken()
+#             else:
+#                 is_token_holder = True
+#         if received_packet.startswith("7777"):
+#             packet = received_packet.split(";")
 
-            # Campo origem, caso o pacote de dados seja recebido por quem o originou 
-            if packet[1] == machine_name:
-                packet = packet[0].split(":")
+#             # Campo origem, caso o pacote de dados seja recebido por quem o originou 
+#             if packet[1] == machine_name:
+#                 packet = packet[0].split(":")
 
-                if packet[1] == "naoexiste":
-                    print("máquina destino não se encontra na rede ou está desligada")
-                    fila.get()
-                    passesToken()
-                if packet[1] == "NACK":
-                    print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
-                    passesToken()
-                if packet[1] == "ACK":
-                    print("o pacote foi recebido corretamente pela máquina destino")
-                    fila.get()
-                    passesToken()
+#                 if packet[1] == "naoexiste":
+#                     print("máquina destino não se encontra na rede ou está desligada")
+#                     fila.get()
+#                     passesToken()
+#                 if packet[1] == "NACK":
+#                     print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
+#                     passesToken()
+#                 if packet[1] == "ACK":
+#                     print("o pacote foi recebido corretamente pela máquina destino")
+#                     fila.get()
+#                     passesToken()
 
-                is_message_confirmed = True
+#                 is_message_confirmed = True
 
-            # Campo destino, a estação identifica se o mesmo é endereçado a ela
-            elif packet[2] == machine_name:
-                received_packet = process_message(received_packet)
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+#             # Campo destino, a estação identifica se o mesmo é endereçado a ela
+#             elif packet[2] == machine_name:
+#                 received_packet = process_message(received_packet)
+#                 client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
-            elif packet[2] == "TODOS":
-                # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
-                received_packet = process_message(received_packet)
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+#             elif packet[2] == "TODOS":
+#                 # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
+#                 received_packet = process_message(received_packet)
+#                 client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
-            #repassa pacote
-            else:
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+#             #repassa pacote
+#             else:
+#                 client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
 
 # Função para enviar mensagens
 def send_message(destination, machine_name):
+    global is_message_confirmed
     while True:
         if is_token_holder and not fila.empty():
             # Código para enviar mensagens
@@ -200,9 +201,9 @@ if __name__ == '__main__':
     # Carregando configurações do arquivo
     destination, port, machine_name, token_time, is_token_holder = read_config_file('config.txt')
 
-    # Iniciando para receber menssagens
-    receive_message_thread = threading.Thread(target=receive_message, args=(destination, machine_name))
-    receive_message_thread.start()
+    # # Iniciando para receber menssagens
+    # receive_message_thread = threading.Thread(target=receive_message, args=(destination, machine_name))
+    # receive_message_thread.start()
 
     # Iniciando para enviar menssagens
     send_message_thread = threading.Thread(target=send_message, args=(destination, machine_name))

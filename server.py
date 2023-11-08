@@ -87,7 +87,7 @@ def process_message(packet):
     packet_str = packet.to_string()
     return packet_str
 
-# Implementação do servidor para receber e processar mensagens
+# Implementação do servidor para receber e processar mensagens.
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
 

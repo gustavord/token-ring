@@ -185,8 +185,8 @@ def send_message(destination, machine_name):
                 #     break
                 pass  # Espera pela confirmação
 
-            # Reset da variável para a próxima mensagem
-            is_message_confirmed = False
+            # Reset da variável para a próxima mensagem.
+            is_message_confirmed = False 
 
 # Leitura do arquivo de configuração GPT então tem que ver
 def read_config_file(file_path):

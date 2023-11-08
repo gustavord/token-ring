@@ -90,8 +90,8 @@ def process_message(packet):
 # Implementação do servidor para receber e processar mensagens
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
-    
-    client_socket.bind(("192.168.0.11", port))
+
+    client_socket.bind(("0.0.0.0", port))
 
     while True:
         # Recebendo pacotes

@@ -15,7 +15,7 @@ token_time = 0
 token = "9000"
 
 is_message_confirmed = False  # variavel de controle de confirmação de retorno da mensagem
-timeout_limit = 5 # timer para a confirmação de retorno da mensagem
+timeout_limit = 50 # timer para a confirmação de retorno da mensagem
 
 max_token_pass_time = 10  # tempo máximo para o token passar pela rede
 min_token_pass_time = 1   # tempo mínimo para o token passar pela rede
@@ -32,7 +32,7 @@ class DataPacket:
         self.message = message
 
     def to_string(self):
-        return f"7777:{self.control_error};{self.source}:{self.destination};{self.crc};{self.message}"
+        return f"7777:{self.control_error};{self.source};{self.destination};{self.crc};{self.message}"
     
 def timeTokenControl():
     pass
@@ -67,7 +67,7 @@ def insertFailure(dst, message):
 def process_message(packet):
     packet = packet.split(";")
 
-    err = packet.split(":")[1]
+    err = packet[0].split(":")[1]
     src = packet[1]
     dst = packet[2]
     crc = packet[3]
@@ -81,7 +81,7 @@ def process_message(packet):
         else:
             err = "NACK"
 
-    print("{src} : {msg}")
+    print(f"{src} : {msg}")
 
     packet = DataPacket(err, src, dst, crc, msg)
     packet_str = packet.to_string()
@@ -97,7 +97,7 @@ def receive_message(destination, machine_name):
         # Recebendo pacotes
         data, addr = client_socket.recvfrom(1024)
         received_packet = data.decode('utf-8')
-
+        
         # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
         debugging()
 
@@ -179,7 +179,7 @@ def send_message(destination, machine_name):
                     # Se o tempo limite foi atingido, sai do loop de espera
                     print("Timeout atingido. Mensagem não confirmada.")
                     fila.get()
-                    passesToken()
+                    #passesToken()
                     break
                 pass  # Espera pela confirmação
 

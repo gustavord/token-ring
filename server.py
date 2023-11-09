@@ -88,12 +88,13 @@ def process_message(packet):
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
 
-    socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    socket.bind(("0.0.0.0", port))
+    socketTeste = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    socketTeste = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    socketTeste.bind(("0.0.0.0", port))
 
     while True:
             # Recebendo pacotes
-            data, addr = socket.recvfrom(1024) #tranca aqui
+            data, addr = socketTeste.recvfrom(1024) #tranca aqui
             received_packet = data.decode('utf-8')
 
             # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
@@ -136,16 +137,16 @@ def receive_message(destination, machine_name):
                 # Campo destino, a estação identifica se o mesmo é endereçado a ela
                 elif packet[2] == machine_name:
                     received_packet = process_message(received_packet)
-                    socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 elif packet[2] == "TODOS":
                     # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
                     received_packet = process_message(received_packet)
-                    socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 #repassa pacote
                 else:
-                    socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
 
 
 # Função para enviar mensagens

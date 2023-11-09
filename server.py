@@ -10,6 +10,7 @@ from queue import Queue
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 0
 fila = Queue()
+transmissionQueue = Queue()
 is_token_holder = False
 token_time = 0
 token = "9000"
@@ -121,6 +122,14 @@ def receive_message(destination, machine_name):
                         passesToken()
                     if packet[1] == "NACK":
                         print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
+
+                        if transmissionQueue.empty() or transmissionQueue.queue[0] != fila.queue[0]:
+                            transmissionQueue.put(fila.queue[0])
+                        elif transmissionQueue.queue[0] == fila.queue[0]:
+                            fila.get()
+                            transmissionQueue.get()
+                        else:
+                            pass
                         passesToken()
                     if packet[1] == "ACK":
                         print("o pacote foi recebido corretamente pela máquina destino")
@@ -154,13 +163,17 @@ def send_message(destination, machine_name):
 
             dst = dst_data[0].replace(" ", "")    # pega o apelido da maquina destino
             msg = dst_data[1].replace(" ", "", 1) # pega a mensagem
-            crc = crc32(msg)
-
+            crc = 0
             #  módulo de inserção de falhas
             # A aplicação deve implementar um módulo de inserção de falhas que force as máquinas a inserir erros aleatoriamente nas mensagens.
             # Escolha foi Forçar manualmente a falha
             if "-f" in msg:
-                msg = insertFailure(dst, msg)
+                msg = msg.replace("-f", "") # remove o -f de falha
+                crc = crc32(msg) # cacula a mensagem sem falha (induzir ao erro no destino)
+                msg = insertFailure(dst, msg) # adiciona falha
+            else:
+                crc = crc32(msg) # calcula a mensagem sem falha (normal)
+
 
             # monta pacote
             data_packet = DataPacket("naoexiste", machine_name, dst, crc, msg)
@@ -170,7 +183,7 @@ def send_message(destination, machine_name):
             client_socket.sendto(packet_string.encode('utf-8'), (destination, port))
 
             # Aguarda a confirmação de retorno da mensagem
-            #start_time = time.time()
+            start_time = time.time()
             while not is_message_confirmed:
                 if time.time() - start_time > timeout_limit:
                     # Se o tempo limite foi atingido, sai do loop de espera

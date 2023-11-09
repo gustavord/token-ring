@@ -10,7 +10,7 @@ from queue import Queue
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 0
 fila = Queue()
-transmissionQueue = Queue()
+retransmissionQueue = Queue()
 is_token_holder = False
 token_time = 0
 token = "9000"
@@ -120,17 +120,11 @@ def receive_message(destination, machine_name):
                         print("máquina destino não se encontra na rede ou está desligada")
                         fila.get()
                         passesToken()
-                    if packet[1] == "NACK":
-                        print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
 
-                        if transmissionQueue.empty() or transmissionQueue.queue[0] != fila.queue[0]:
-                            transmissionQueue.put(fila.queue[0])
-                        elif transmissionQueue.queue[0] == fila.queue[0]:
-                            fila.get()
-                            transmissionQueue.get()
-                        else:
-                            pass
+                    if packet[1] == "NACK":
+                        retransmissionQueue.put(fila.queue[0])  # Adiciona o elemento da fila principal na fila de retransmissão
                         passesToken()
+
                     if packet[1] == "ACK":
                         print("o pacote foi recebido corretamente pela máquina destino")
                         fila.get()
@@ -164,6 +158,13 @@ def send_message(destination, machine_name):
             dst = dst_data[0].replace(" ", "")    # pega o apelido da maquina destino
             msg = dst_data[1].replace(" ", "", 1) # pega a mensagem
             crc = 0
+
+            # Garantia da espefificação que diz:
+            # Caso o pacote venha com NACK, o mesmo deve ser retransmitido apenas uma vez na rede, trocando o NACK por naoexiste, 
+            # colocando a mensagem original sem erro e enviando a mensagem para a máquina a sua direita na próxima passagem do token.
+            if not transmissionQueue.empty() and transmissionQueue.queue[0] == fila.queue[0]:
+                msg = msg.replace("-f", "") # remove o -f de falha
+            
             #  módulo de inserção de falhas
             # A aplicação deve implementar um módulo de inserção de falhas que force as máquinas a inserir erros aleatoriamente nas mensagens.
             # Escolha foi Forçar manualmente a falha

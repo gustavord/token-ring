@@ -102,7 +102,7 @@ def receive_message(destination, machine_name):
 
     while True:
             # Recebendo pacotes
-            data, addr = socketTeste.recvfrom(1024) #tranca aqui
+            data, addr = client_socket.recvfrom(1024) #tranca aqui
             received_packet = data.decode('utf-8')
 
             # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos

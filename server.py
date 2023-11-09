@@ -70,7 +70,7 @@ def process_message(packet):
     err = packet[0].split(":")[1]
     src = packet[1]
     dst = packet[2]
-    crc = packet[3]
+    crc = int(packet[3])
     msg = packet[4]
 
     newCRC = crc32(msg)
@@ -91,59 +91,61 @@ def process_message(packet):
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
 
-    client_socket.bind(("0.0.0.0", port))
+    receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    receive_socket.bind(("0.0.0.0", port))
 
     while True:
-        # Recebendo pacotes
-        data, addr = client_socket.recvfrom(1024)
-        received_packet = data.decode('utf-8')
-        
-        # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
-        debugging()
-        # Lógica para manipular os pacotes recebidos
-        # verifica se é o token
-        if received_packet.startswith(token):
-            if fila.empty:
-                #repassa token
-                #dfgdfgdfgdgdgdgdgg
-                passesToken()
-            else:
-                is_token_holder = True
-        if received_packet.startswith("7777"):
-            packet = received_packet.split(";")
+            # Recebendo pacotes
+            data, addr = receive_socket.recvfrom(1024) #tranca aqui
+            received_packet = data.decode('utf-8')
 
-            # Campo origem, caso o pacote de dados seja recebido por quem o originou 
-            if packet[1] == machine_name:
-                packet = packet[0].split(":")
+            # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
+            debugging()
 
-                if packet[1] == "naoexiste":
-                    print("máquina destino não se encontra na rede ou está desligada")
-                    fila.get()
+            # Lógica para manipular os pacotes recebidos
+            # verifica se é o token
+            if received_packet.startswith(token):
+                if fila.empty():
+                    #repassa token
                     passesToken()
-                if packet[1] == "NACK":
-                    print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
-                    passesToken()
-                if packet[1] == "ACK":
-                    print("o pacote foi recebido corretamente pela máquina destino")
-                    fila.get()
-                    passesToken()
+                else:
+                    is_token_holder = True
+                    print("Token recebido")
+            
+            if received_packet.startswith("7777"):
+                packet = received_packet.split(";")
 
-                is_message_confirmed = True
+                # Campo origem, caso o pacote de dados seja recebido por quem o originou 
+                if packet[1] == machine_name:
+                    packet = packet[0].split(":")
 
-            # Campo destino, a estação identifica se o mesmo é endereçado a ela
-            elif packet[2] == machine_name:
-                received_packet = process_message(received_packet)
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    if packet[1] == "naoexiste":
+                        print("máquina destino não se encontra na rede ou está desligada")
+                        fila.get()
+                        passesToken()
+                    if packet[1] == "NACK":
+                        print("máquina destino identificou um erro no pacote. Retransmitindo pacote...")
+                        passesToken()
+                    if packet[1] == "ACK":
+                        print("o pacote foi recebido corretamente pela máquina destino")
+                        fila.get()
+                        passesToken()
 
-            elif packet[2] == "TODOS":
-                # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
-                received_packet = process_message(received_packet)
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    is_message_confirmed = True
 
-            #repassa pacote
-            else:
-                client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
-        print("xxx")
+                # Campo destino, a estação identifica se o mesmo é endereçado a ela
+                elif packet[2] == machine_name:
+                    received_packet = process_message(received_packet)
+                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+
+                elif packet[2] == "TODOS":
+                    # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
+                    received_packet = process_message(received_packet)
+                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+
+                #repassa pacote
+                else:
+                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
 
 # Função para enviar mensagens
@@ -158,10 +160,7 @@ def send_message(destination, machine_name):
             msg = dst_data[1].replace(" ", "", 1) # pega a mensagem
             crc = crc32(msg)
 
-            print(msg)
-
             #  módulo de inserção de falhas
-
             # A aplicação deve implementar um módulo de inserção de falhas que force as máquinas a inserir erros aleatoriamente nas mensagens.
             # Forçar manualmente ou já deixar ativo????
             # if "-f" in msg:
@@ -176,7 +175,7 @@ def send_message(destination, machine_name):
             client_socket.sendto(packet_string.encode('utf-8'), (destination, port))
 
             # Aguarda a confirmação de retorno da mensagem
-            start_time = time.time()
+            #start_time = time.time()
             while not is_message_confirmed:
                 # if time.time() - start_time > timeout_limit:
                 #     # Se o tempo limite foi atingido, sai do loop de espera
@@ -206,13 +205,13 @@ if __name__ == '__main__':
     # Carregando configurações do arquivo
     destination, port, machine_name, token_time, is_token_holder = read_config_file('config.txt')
 
-    # Iniciando para receber menssagens
-    receive_message_thread = threading.Thread(target=receive_message, args=(destination, machine_name))
-    receive_message_thread.start()
-
     # Iniciando para enviar menssagens
     send_message_thread = threading.Thread(target=send_message, args=(destination, machine_name))
     send_message_thread.start()
+
+    # Iniciando para receber menssagens
+    receive_message_thread = threading.Thread(target=receive_message, args=(destination, machine_name))
+    receive_message_thread.start()
 
     # if is_token_holder:
     #     timeTokenControl_thread = threading.Thread(target=timeTokenControl())

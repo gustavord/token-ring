@@ -16,17 +16,15 @@ token_time = 0
 token = "9000"
 
 is_message_confirmed = False  # variavel de controle de confirmação de retorno da mensagem
-timeout_limit = 50 # timer para a confirmação de retorno da mensagem
+timeout_limit = 15 # timer para a confirmação de retorno da mensagem
 
 #error_probability = 0.2  # Probabilidade de erro, por exemplo 20%
 
 # Constantes para controle de tempo
-TIMEOUT_THRESHOLD = 15  # Tempo limite para detectar timeout do token
-MIN_TOKEN_PASS_TIME = 3  # Tempo mínimo para passagem do token entre as estações
+TIMEOUT_THRESHOLD = 20  # Tempo limite para detectar timeout do token
+MIN_TOKEN_PASS_TIME = 5  # Tempo mínimo para passagem do token entre as estações
 
 # Variáveis para controle do token
-token_holder_time = 0
-token_passed_time = 0
 token_last_passed = time.time()
 
 # Função para controlar o tempo do token
@@ -37,18 +35,23 @@ def timeTokenControl():
         if is_token_holder:
             token_holder_time = time.time() - token_last_passed
             if token_holder_time > TIMEOUT_THRESHOLD:
-                # Caso o token não passe dentro do tempo limite (timeout), gera um novo token
-                print("Timeout detectado. Gerando novo token.")
-                is_token_holder = True
-                token_last_passed = time.time()
+                # Caso que fica com o token e não faz nada 
+                passesToken()
+            
+            # # Controla o tempo mínimo de passagem do token
+            # if token_holder_time < MIN_TOKEN_PASS_TIME:
+            #     # Caso o token passe em um tempo menor que o mínimo, retina este token
+            #     print("Detectada passagem de mais de um token na rede. Retirando token.")
+            #     is_token_holder = False
+            #     token_last_passed = time.time()
 
-        # Controla o tempo mínimo de passagem do token
-        if not is_token_holder:
+        # Veifica quanto tempo o token nao eh recebido (token = false)
+        if not is_token_holder:        
             token_passed_time = time.time() - token_last_passed
-            if token_passed_time < MIN_TOKEN_PASS_TIME:
-                # Caso o token passe em um tempo menor que o mínimo, retina este token
-                print("Detectada passagem de mais de um token na rede. Retirando token.")
-                is_token_holder = False
+            if token_passed_time > TIMEOUT_THRESHOLD:
+                # Caso o token não passe dentro do tempo limite (timeout), gera um novo token
+                print("Timeout detectado. Gerando Token")
+                is_token_holder = True
                 token_last_passed = time.time()
 
         time.sleep(1)
@@ -67,9 +70,10 @@ class DataPacket:
 
 # Transmissao do Token
 def passesToken():
-    global is_token_holder
+    global is_token_holder, token_last_passed
     is_token_holder = False
     client_socket.sendto(token.encode(), (destination, port))
+    token_last_passed = time.time()
     print("Transmissao do Token")
 
 # tempo que elas permanecerão com os pacotes (para fins de depuração)
@@ -229,7 +233,7 @@ def send_message(destination, machine_name):
             while not is_message_confirmed:
                 if time.time() - start_time > timeout_limit:
                     # Se o tempo limite foi atingido, sai do loop de espera
-                    print("Timeout atingido. Mensagem não confirmada.")
+                    print("Timeout detectado. Mensagem não confirmada.")
                     fila.get()
                     passesToken()
                     break

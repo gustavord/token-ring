@@ -21,6 +21,8 @@ timeout_limit = 50 # timer para a confirmação de retorno da mensagem
 max_token_pass_time = 10  # tempo máximo para o token passar pela rede
 min_token_pass_time = 1   # tempo mínimo para o token passar pela rede
 
+#error_probability = 0.2  # Probabilidade de erro, por exemplo 20%
+
 # Estrutura do pacote de dados
 class DataPacket:
     def __init__(self, control_error, source, destination, crc, message):
@@ -53,12 +55,19 @@ def crc32(msg):
     return crc_value
 
 def insertFailure(dst, message):
+    # estamos inserindo a falha de forma manual e controlada, para automatiza bastaria descomentar o if e o return
+    # Verifica se um erro deve ser introduzido com base na probabilidade
+    #if random.random() < error_probability:
+
     # Aqui, você pode adotar diferentes estratégias para introduzir erros
     # Por exemplo, inverter um caractere na mensagem
     index = random.randint(0, len(message) - 1)
     modified_message = message[:index] + chr((ord(message[index]) + 1) % 256) + message[index+1:]
     print(f"Mensagem com falha adicionada: {modified_message}")
     return modified_message
+    
+    # Se nenhum erro for introduzido, retorna a mensagem original
+    #return message
 
 
 def process_message(packet):
@@ -88,9 +97,8 @@ def process_message(packet):
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
 
-    socketTeste = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    socketTeste = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    socketTeste.bind(("0.0.0.0", port))
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.bind(("0.0.0.0", port))
 
     while True:
             # Recebendo pacotes
@@ -137,16 +145,16 @@ def receive_message(destination, machine_name):
                 # Campo destino, a estação identifica se o mesmo é endereçado a ela
                 elif packet[2] == machine_name:
                     received_packet = process_message(received_packet)
-                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 elif packet[2] == "TODOS":
                     # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
                     received_packet = process_message(received_packet)
-                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 #repassa pacote
                 else:
-                    socketTeste.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
 
 # Função para enviar mensagens
@@ -158,6 +166,7 @@ def send_message(destination, machine_name):
             dst_data = fila.queue[0].split(":")
 
             dst = dst_data[0].replace(" ", "")    # pega o apelido da maquina destino
+
             msg = dst_data[1].replace(" ", "", 1) # pega a mensagem
             crc = 0
 
@@ -178,6 +187,8 @@ def send_message(destination, machine_name):
             else:
                 crc = crc32(msg) # calcula a mensagem sem falha (normal)
 
+            # para automatiza bastaria comentar o trecho acima e descomentar a linha abaixo
+            # msg = insertFailure(dst, msg) # adiciona falha
 
             # monta pacote
             data_packet = DataPacket("naoexiste", machine_name, dst, crc, msg)

@@ -7,6 +7,16 @@ import select
 import random
 from queue import Queue
 
+# Códigos ANSI para cores no terminal
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 0
 fila = Queue()
@@ -27,30 +37,27 @@ MIN_TOKEN_PASS_TIME = 5  # Tempo mínimo para passagem do token entre as estaç�
 # Variáveis para controle do token
 token_last_passed = time.time()
 
+# Variavel para remover Token
+withdrawToken = False
+
 # Função para controlar o tempo do token
 def timeTokenControl():
-    global token_holder_time, token_passed_time, token_last_passed, is_token_holder
+    global token_last_passed, is_token_holder
 
     while True:
         if is_token_holder:
             token_holder_time = time.time() - token_last_passed
             if token_holder_time > TIMEOUT_THRESHOLD:
-                # Caso que fica com o token e não faz nada 
+                # Caso que fica com o token e não faz nada
+                print(f"{bcolors.WARNING}Transmitindo token por inatividade{bcolors.WARNING}")
                 passesToken()
             
-            # # Controla o tempo mínimo de passagem do token
-            # if token_holder_time < MIN_TOKEN_PASS_TIME:
-            #     # Caso o token passe em um tempo menor que o mínimo, retina este token
-            #     print("Detectada passagem de mais de um token na rede. Retirando token.")
-            #     is_token_holder = False
-            #     token_last_passed = time.time()
-
         # Veifica quanto tempo o token nao eh recebido (token = false)
         if not is_token_holder:        
             token_passed_time = time.time() - token_last_passed
             if token_passed_time > TIMEOUT_THRESHOLD:
                 # Caso o token não passe dentro do tempo limite (timeout), gera um novo token
-                print("Timeout detectado. Gerando Token")
+                print(f"{bcolors.WARNING}Timeout detectado. Gerando Token{bcolors.WARNING}")
                 is_token_holder = True
                 token_last_passed = time.time()
 
@@ -74,10 +81,11 @@ def passesToken():
     is_token_holder = False
     client_socket.sendto(token.encode(), (destination, port))
     token_last_passed = time.time()
-    print("Transmissao do Token")
+    print(f"{bcolors.OKBLUE}Transmissao do Token{bcolors.OKBLUE}")
 
 # tempo que elas permanecerão com os pacotes (para fins de depuração)
 def debugging():
+    print(f"{bcolors.OKBLUE}Processando mensagem{bcolors.OKBLUE}")
     time.sleep(token_time)
 
 def crc32(msg):
@@ -94,7 +102,7 @@ def insertFailure(dst, message):
     # Por exemplo, inverter um caractere na mensagem
     index = random.randint(0, len(message) - 1)
     modified_message = message[:index] + chr((ord(message[index]) + 1) % 256) + message[index+1:]
-    print(f"Mensagem com falha adicionada: {modified_message}")
+    print(f"{bcolors.FAIL}Mensagem com falha adicionada: {modified_message}{bcolors.FAIL}")
     return modified_message
     
     # Se nenhum erro for introduzido, retorna a mensagem original
@@ -118,7 +126,7 @@ def process_message(packet):
         else:
             err = "NACK"
 
-    print(f"{src} <==> {msg}")
+    print(f"{bcolors.OKGREEN}{src} <==> {msg}{bcolors.OKGREEN}")
 
     packet = DataPacket(err, src, dst, crc, msg)
     packet_str = packet.to_string()
@@ -126,7 +134,7 @@ def process_message(packet):
 
 # Implementação do servidor para receber e processar mensagens.
 def receive_message(destination, machine_name):
-    global is_token_holder, is_message_confirmed
+    global is_token_holder, is_message_confirmed, token_last_passed, withdrawToken
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind(("0.0.0.0", port))
@@ -146,8 +154,20 @@ def receive_message(destination, machine_name):
                     #repassa token
                     passesToken()
                 else:
-                    is_token_holder = True
-                    print("Token recebido")
+                    # Controla o tempo mínimo de passagem do token
+                    token_holder_time = time.time() - token_last_passed
+                    if token_holder_time < MIN_TOKEN_PASS_TIME:
+                        # Caso o token passe em um tempo menor que o mínimo, retina este token
+                        print(f"{bcolors.WARNING}Detectada passagem de mais de um token na rede. Retirando token.{bcolors.WARNING}")
+                        is_token_holder = False
+                    else:
+                        if withdrawToken:
+                            print(f"{bcolors.WARNING}Removendo Token{bcolors.WARNING}")
+                            is_token_holder = False
+                            withdrawToken = False
+                        else:
+                            is_token_holder = True
+                            print(f"{bcolors.OKBLUE}Token recebido{bcolors.OKBLUE}")
             
             if received_packet.startswith("7777"):
                 packet = received_packet.split(";")
@@ -157,17 +177,17 @@ def receive_message(destination, machine_name):
                     packet = packet[0].split(":")
 
                     if packet[1] == "naoexiste":
-                        print("máquina destino não se encontra na rede ou está desligada")
+                        print(f"{bcolors.OKBLUE}Máquina destino não se encontra na rede ou está desligada{bcolors.OKBLUE}")
                         fila.get()
                         passesToken()
 
                     if packet[1] == "NACK":
-                        print("máquina destino identificou um erro no pacote. Retransmitindo....")
+                        print(f"{bcolors.OKBLUE}Máquina destino identificou um erro no pacote. Retransmitindo....{bcolors.OKBLUE}")
                         retransmissionQueue.put(fila.queue[0])  # Adiciona o elemento da fila principal na fila de retransmissão
                         passesToken()
 
                     if packet[1] == "ACK":
-                        print("o pacote foi recebido corretamente pela máquina destino")
+                        print(f"{bcolors.OKBLUE}O pacote foi recebido corretamente pela máquina destino{bcolors.OKBLUE}")
                         fila.get()
                         passesToken()
 
@@ -233,7 +253,7 @@ def send_message(destination, machine_name):
             while not is_message_confirmed:
                 if time.time() - start_time > timeout_limit:
                     # Se o tempo limite foi atingido, sai do loop de espera
-                    print("Timeout detectado. Mensagem não confirmada.")
+                    print(f"{bcolors.FAIL }Timeout detectado. Mensagem não confirmada.{bcolors.FAIL }")
                     fila.get()
                     passesToken()
                     break
@@ -269,7 +289,6 @@ if __name__ == '__main__':
 
     # A máquina que gera o token a primeira vez deve controlá-lo
     if is_token_holder:
-        print("$$$$")
         # Iniciando thread para controlar o tempo do token
         time_token_control_thread = threading.Thread(target=timeTokenControl)
         time_token_control_thread.start()
@@ -279,8 +298,17 @@ if __name__ == '__main__':
         # Recebendo a entrada do usuário
         elemento = input() # exemplo "bob : Oiiii" -> "# (destino) (mensagem)"
 
+        # Comando para adicionar Token
+        if elemento == "+t":
+            is_token_holder = True
+            print(f"{bcolors.WARNING}Adicionando Token{bcolors.WARNING}")
+        
+        # Comando para remover Token
+        if elemento == "-t":
+            withdrawToken = True
+
         if fila.qsize() == 10:
-            print("Fila de mensagens cheia")
+            print(f"{bcolors.WARNING}Fila de mensagens cheia{bcolors.WARNING}")
         else:
             # Adicionando o elemento à fila
             fila.put(elemento)

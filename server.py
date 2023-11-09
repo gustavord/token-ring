@@ -18,10 +18,40 @@ token = "9000"
 is_message_confirmed = False  # variavel de controle de confirmação de retorno da mensagem
 timeout_limit = 50 # timer para a confirmação de retorno da mensagem
 
-max_token_pass_time = 10  # tempo máximo para o token passar pela rede
-min_token_pass_time = 1   # tempo mínimo para o token passar pela rede
-
 #error_probability = 0.2  # Probabilidade de erro, por exemplo 20%
+
+# Constantes para controle de tempo
+TIMEOUT_THRESHOLD = 15  # Tempo limite para detectar timeout do token
+MIN_TOKEN_PASS_TIME = 3  # Tempo mínimo para passagem do token entre as estações
+
+# Variáveis para controle do token
+token_holder_time = 0
+token_passed_time = 0
+token_last_passed = time.time()
+
+# Função para controlar o tempo do token
+def timeTokenControl():
+    global token_holder_time, token_passed_time, token_last_passed, is_token_holder
+
+    while True:
+        if is_token_holder:
+            token_holder_time = time.time() - token_last_passed
+            if token_holder_time > TIMEOUT_THRESHOLD:
+                # Caso o token não passe dentro do tempo limite (timeout), gera um novo token
+                print("Timeout detectado. Gerando novo token.")
+                is_token_holder = True
+                token_last_passed = time.time()
+
+        # Controla o tempo mínimo de passagem do token
+        if not is_token_holder:
+            token_passed_time = time.time() - token_last_passed
+            if token_passed_time < MIN_TOKEN_PASS_TIME:
+                # Caso o token passe em um tempo menor que o mínimo, retina este token
+                print("Detectada passagem de mais de um token na rede. Retirando token.")
+                is_token_holder = False
+                token_last_passed = time.time()
+
+        time.sleep(1)
 
 # Estrutura do pacote de dados
 class DataPacket:
@@ -34,9 +64,6 @@ class DataPacket:
 
     def to_string(self):
         return f"7777:{self.control_error};{self.source};{self.destination};{self.crc};{self.message}"
-    
-def timeTokenControl():
-    pass
 
 # Transmissao do Token
 def passesToken():
@@ -236,9 +263,12 @@ if __name__ == '__main__':
     receive_message_thread = threading.Thread(target=receive_message, args=(destination, machine_name))
     receive_message_thread.start()
 
-    # if is_token_holder:
-    #     timeTokenControl_thread = threading.Thread(target=timeTokenControl())
-    #     timeTokenControl_thread.start()
+    # A máquina que gera o token a primeira vez deve controlá-lo
+    if is_token_holder:
+        print("$$$$")
+        # Iniciando thread para controlar o tempo do token
+        time_token_control_thread = threading.Thread(target=timeTokenControl)
+        time_token_control_thread.start()
 
     # Lógica para envio de mensagens
     while True:

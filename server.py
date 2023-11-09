@@ -78,7 +78,7 @@ def process_message(packet):
         else:
             err = "NACK"
 
-    print(f"{src} : {msg}")
+    print(f"{src} <==> {msg}")
 
     packet = DataPacket(err, src, dst, crc, msg)
     packet_str = packet.to_string()
@@ -122,6 +122,7 @@ def receive_message(destination, machine_name):
                         passesToken()
 
                     if packet[1] == "NACK":
+                        print("máquina destino identificou um erro no pacote. Retransmitindo....")
                         retransmissionQueue.put(fila.queue[0])  # Adiciona o elemento da fila principal na fila de retransmissão
                         passesToken()
 
@@ -162,7 +163,8 @@ def send_message(destination, machine_name):
             # Garantia da espefificação que diz:
             # Caso o pacote venha com NACK, o mesmo deve ser retransmitido apenas uma vez na rede, trocando o NACK por naoexiste, 
             # colocando a mensagem original sem erro e enviando a mensagem para a máquina a sua direita na próxima passagem do token.
-            if not transmissionQueue.empty() and transmissionQueue.queue[0] == fila.queue[0]:
+            if not retransmissionQueue.empty() and retransmissionQueue.queue[0] == fila.queue[0]:
+                retransmissionQueue.get()
                 msg = msg.replace("-f", "") # remove o -f de falha
             
             #  módulo de inserção de falhas

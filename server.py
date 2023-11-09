@@ -20,8 +20,6 @@ timeout_limit = 50 # timer para a confirmação de retorno da mensagem
 max_token_pass_time = 10  # tempo máximo para o token passar pela rede
 min_token_pass_time = 1   # tempo mínimo para o token passar pela rede
 
-error_probability = 0.2  # Probabilidade de erro, por exemplo 20%
-
 # Estrutura do pacote de dados
 class DataPacket:
     def __init__(self, control_error, source, destination, crc, message):
@@ -37,6 +35,7 @@ class DataPacket:
 def timeTokenControl():
     pass
 
+# Transmissao do Token
 def passesToken():
     global is_token_holder
     is_token_holder = False
@@ -53,16 +52,13 @@ def crc32(msg):
     return crc_value
 
 def insertFailure(dst, message):
-    # Verifica se um erro deve ser introduzido com base na probabilidade
-    if random.random() < error_probability:
-        # Aqui, você pode adotar diferentes estratégias para introduzir erros
-        # Por exemplo, inverter um caractere na mensagem
-        index = random.randint(0, len(message) - 1)
-        modified_message = message[:index] + chr((ord(message[index]) + 1) % 256) + message[index+1:]
-        return modified_message
+    # Aqui, você pode adotar diferentes estratégias para introduzir erros
+    # Por exemplo, inverter um caractere na mensagem
+    index = random.randint(0, len(message) - 1)
+    modified_message = message[:index] + chr((ord(message[index]) + 1) % 256) + message[index+1:]
+    print(f"Mensagem com falha adicionada: {modified_message}")
+    return modified_message
 
-    # Se nenhum erro for introduzido, retorna a mensagem original
-    return message
 
 def process_message(packet):
     packet = packet.split(";")
@@ -91,12 +87,12 @@ def process_message(packet):
 def receive_message(destination, machine_name):
     global is_token_holder, is_message_confirmed
 
-    receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    receive_socket.bind(("0.0.0.0", port))
+    #receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.bind(("0.0.0.0", port))
 
     while True:
             # Recebendo pacotes
-            data, addr = receive_socket.recvfrom(1024) #tranca aqui
+            data, addr = client_socket.recvfrom(1024) #tranca aqui
             received_packet = data.decode('utf-8')
 
             # tempo que elas permanecerão com os pacotes (para fins de depuração), em segundos
@@ -136,16 +132,16 @@ def receive_message(destination, machine_name):
                 # Campo destino, a estação identifica se o mesmo é endereçado a ela
                 elif packet[2] == machine_name:
                     received_packet = process_message(received_packet)
-                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 elif packet[2] == "TODOS":
                     # Broadcast -> manter o pacote em “naoexiste” (ninguem confirma)
                     received_packet = process_message(received_packet)
-                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
                 #repassa pacote
                 else:
-                    receive_socket.sendto(received_packet.encode('utf-8'), (destination, port))
+                    client_socket.sendto(received_packet.encode('utf-8'), (destination, port))
 
 
 # Função para enviar mensagens
@@ -162,10 +158,9 @@ def send_message(destination, machine_name):
 
             #  módulo de inserção de falhas
             # A aplicação deve implementar um módulo de inserção de falhas que force as máquinas a inserir erros aleatoriamente nas mensagens.
-            # Forçar manualmente ou já deixar ativo????
-            # if "-f" in msg:
-            #     data_packet = insertFailure(dst, msg)
-            #data_packet = insertFailure(dst, msg)
+            # Escolha foi Forçar manualmente a falha
+            if "-f" in msg:
+                msg = insertFailure(dst, msg)
 
             # monta pacote
             data_packet = DataPacket("naoexiste", machine_name, dst, crc, msg)
@@ -177,12 +172,12 @@ def send_message(destination, machine_name):
             # Aguarda a confirmação de retorno da mensagem
             #start_time = time.time()
             while not is_message_confirmed:
-                # if time.time() - start_time > timeout_limit:
-                #     # Se o tempo limite foi atingido, sai do loop de espera
-                #     print("Timeout atingido. Mensagem não confirmada.")
-                #     fila.get()
-                #     #passesToken()
-                #     break
+                if time.time() - start_time > timeout_limit:
+                    # Se o tempo limite foi atingido, sai do loop de espera
+                    print("Timeout atingido. Mensagem não confirmada.")
+                    fila.get()
+                    passesToken()
+                    break
                 pass  # Espera pela confirmação
 
             # Reset da variável para a próxima mensagem.

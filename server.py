@@ -31,6 +31,7 @@ timeout_limit = 15 # timer para a confirmação de retorno da mensagem
 #error_probability = 0.2  # Probabilidade de erro, por exemplo 20%
 
 # Constantes para controle de tempo
+TIMEOUT_INACTIVITY = 30 # Tempo limite para detectar timeout por inatividade
 TIMEOUT_THRESHOLD = 20  # Tempo limite para detectar timeout do token
 MIN_TOKEN_PASS_TIME = 5  # Tempo mínimo para passagem do token entre as estações
 
@@ -47,7 +48,7 @@ def timeTokenControl():
     while True:
         if is_token_holder:
             token_holder_time = time.time() - token_last_passed
-            if token_holder_time > TIMEOUT_THRESHOLD:
+            if token_holder_time > TIMEOUT_INACTIVITY:
                 # Caso que fica com o token e não faz nada
                 print(f"{bcolors.WARNING}Transmitindo token por inatividade{bcolors.WARNING}")
                 passesToken()
@@ -85,7 +86,6 @@ def passesToken():
 
 # tempo que elas permanecerão com os pacotes (para fins de depuração)
 def debugging():
-    print(f"{bcolors.OKBLUE}Processando mensagem{bcolors.OKBLUE}")
     time.sleep(token_time)
 
 def crc32(msg):
@@ -304,10 +304,10 @@ if __name__ == '__main__':
             print(f"{bcolors.WARNING}Adicionando Token{bcolors.WARNING}")
         
         # Comando para remover Token
-        if elemento == "-t":
+        elif elemento == "-t":
             withdrawToken = True
 
-        if fila.qsize() == 10:
+        elif fila.qsize() == 10:
             print(f"{bcolors.WARNING}Fila de mensagens cheia{bcolors.WARNING}")
         else:
             # Adicionando o elemento à fila
